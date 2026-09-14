@@ -29,7 +29,8 @@
         "appleTeamId": "Q6YKL9BUB3",
         "ascApiKeyPath": "/Users/vlad/.config/asc/AuthKey_TN8ABQT83T.p8",
         "ascApiKeyId": "TN8ABQT83T",
-        "ascApiKeyIssuerId": "7f87b7eb-9a3e-4cc5-b70b-a0e34c80ceb2"
+        "ascApiKeyIssuerId": "7f87b7eb-9a3e-4cc5-b70b-a0e34c80ceb2",
+        "ascAppId": "6812003030"
       }
     }
   }
