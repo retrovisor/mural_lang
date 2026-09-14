@@ -4,13 +4,32 @@
     "appVersionSource": "local"
   },
   "build": {
+    "testflight": {
+      "distribution": "store",
+      "ios": {
+        "image": "latest",
+        "scheme": "Mural",
+        "buildConfiguration": "Release",
+        "config": "ios.yml"
+      }
+    },
     "adhoc": {
       "distribution": "internal",
       "ios": {
         "image": "latest",
         "scheme": "Mural",
         "buildConfiguration": "Release",
-        "config": "ios-adhoc.yml"
+        "config": "ios.yml"
+      }
+    }
+  },
+  "submit": {
+    "testflight": {
+      "ios": {
+        "appleTeamId": "Q6YKL9BUB3",
+        "ascApiKeyPath": "/Users/vlad/.config/asc/AuthKey_TN8ABQT83T.p8",
+        "ascApiKeyId": "TN8ABQT83T",
+        "ascApiKeyIssuerId": "7f87b7eb-9a3e-4cc5-b70b-a0e34c80ceb2"
       }
     }
   }

@@ -1,9 +1,10 @@
 # EAS custom build for the native Mural iOS app (apps/ios/Mural.xcodeproj).
 # The EAS project root is apps/, so apps/ios/ is the ios/ directory the
 # built-in eas/* iOS steps expect. There is no React Native layer, so the
-# default node/prebuild/pods steps are skipped on purpose.
+# default node/prebuild/pods steps are skipped on purpose. The export method
+# (app-store vs ad-hoc) comes from the build profile's distribution.
 build:
-  name: Mural iOS (ad hoc)
+  name: Mural iOS
   steps:
     - eas/checkout
 
