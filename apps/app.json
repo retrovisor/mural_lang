@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Mural",
+    "slug": "mural",
+    "version": "0.1.0",
+    "ios": {
+      "bundleIdentifier": "is.vivatok.mural"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f208d03b-3641-4ecc-b7d7-fabfb0b97d1b"
+      }
+    }
+  }
+}

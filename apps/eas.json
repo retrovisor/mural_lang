@@ -1,0 +1,17 @@
+{
+  "cli": {
+    "version": ">= 24.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "adhoc": {
+      "distribution": "internal",
+      "ios": {
+        "image": "latest",
+        "scheme": "Mural",
+        "buildConfiguration": "Release",
+        "config": "ios-adhoc.yml"
+      }
+    }
+  }
+}

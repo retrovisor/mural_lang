@@ -1,0 +1,6 @@
+{
+  "name": "mural-eas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EAS Build wrapper for the native Mural iOS project in apps/ios (no React Native, no node dependencies)."
+}
