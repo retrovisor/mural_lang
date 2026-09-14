@@ -22,10 +22,65 @@ objects = {}
 def uid(name): return hashlib.sha1(name.encode()).hexdigest()[:24].upper()
 def add(identifier, isa, **fields):
     i = uid(identifier); objects[i] = dict(isa=isa, **fields); return i
-def encode(value):
-    if isinstance(value, dict): return '{ ' + ' '.join(f'{k} = {encode(v)};' for k,v in value.items()) + ' }'
-    if isinstance(value, list): return '( ' + ', '.join(encode(v) for v in value) + ', )' if value else '()'
-    return json.dumps(str(value), ensure_ascii=False)
+_UNQUOTED = re.compile(r'^[A-Za-z0-9_$./]+$')
+def scalar(value):
+    # Same quoting rule as Xcode: bare token when it is safe, quoted otherwise.
+    text = str(value)
+    return text if text and _UNQUOTED.match(text) else json.dumps(text, ensure_ascii=False)
+_PHASE_NAMES = {'PBXSourcesBuildPhase': 'Sources', 'PBXFrameworksBuildPhase': 'Frameworks', 'PBXResourcesBuildPhase': 'Resources'}
+def comment_for(identifier):
+    # The "/* name */" annotations Xcode writes after object references. Parsers
+    # such as the `xcode` npm package (used by EAS CLI and @expo/config-plugins)
+    # read list entries as {value, comment}, so the annotations are not cosmetic.
+    obj = objects.get(identifier)
+    if obj is None: return None
+    isa = obj['isa']
+    if isa == 'PBXProject': return 'Project object'
+    if isa in _PHASE_NAMES: return _PHASE_NAMES[isa]
+    if isa == 'PBXBuildFile':
+        ref = obj.get('fileRef') or obj.get('productRef')
+        phase = next((_PHASE_NAMES[o['isa']] for o in objects.values() if o['isa'] in _PHASE_NAMES and identifier in o.get('files', [])), None)
+        base = comment_for(ref) or ref
+        return base + ' in ' + phase if phase else base
+    if isa == 'XCConfigurationList':
+        owner = next((o for o in objects.values() if o.get('buildConfigurationList') == identifier), None)
+        return 'Build configuration list for ' + owner['isa'] + ' "' + str(owner.get('name', 'Mural')) + '"' if owner else 'Build configuration list'
+    if isa == 'XCRemoteSwiftPackageReference': return isa + ' "' + obj['repositoryURL'].rsplit('/', 1)[-1].removesuffix('.git') + '"'
+    if isa == 'XCLocalSwiftPackageReference': return isa + ' "' + obj['relativePath'] + '"'
+    if isa == 'XCSwiftPackageProductDependency': return obj['productName']
+    if isa in ('PBXContainerItemProxy', 'PBXTargetDependency'): return isa
+    if 'name' in obj: return str(obj['name'])
+    if 'path' in obj: return str(obj['path']).rsplit('/', 1)[-1]
+    return None
+def reference(value, key=None):
+    text = scalar(value)
+    if key in ('remoteGlobalIDString', 'TestTargetID'): return text
+    comment = comment_for(value) if isinstance(value, str) and value in objects else None
+    return text + ' /* ' + comment + ' */' if comment else text
+def encode(value, depth=0, key=None):
+    tab = '\t' * depth
+    if isinstance(value, dict):
+        if not value: return '{\n' + tab + '}'
+        return '{\n' + ''.join(tab + '\t' + scalar(k) + ' = ' + encode(v, depth + 1, k) + ';\n' for k, v in value.items()) + tab + '}'
+    if isinstance(value, list):
+        return '(\n' + ''.join(tab + '\t' + encode(v, depth + 1) + ',\n' for v in value) + tab + ')'
+    return reference(value, key)
+def encode_project(root_object):
+    # Xcode's own layout: objects grouped into "/* Begin <isa> section */" blocks.
+    # Tools that parse pbxproj files (EAS CLI, @expo/config-plugins, the `xcode`
+    # npm package) rely on those section markers to find targets and settings.
+    sections = {}
+    for identifier, obj in objects.items():
+        sections.setdefault(obj['isa'], []).append(identifier)
+    lines = ['// !$*UTF8*$!', '{', '\tarchiveVersion = 1;', '\tclasses = {', '\t};', '\tobjectVersion = 60;', '\tobjects = {', '']
+    for isa in sorted(sections):
+        lines.append('/* Begin ' + isa + ' section */')
+        for identifier in sections[isa]:
+            lines.append('\t\t' + reference(identifier) + ' = ' + encode(objects[identifier], 2) + ';')
+        lines.append('/* End ' + isa + ' section */')
+        lines.append('')
+    lines += ['\t};', '\trootObject = ' + reference(root_object) + ';', '}', '']
+    return '\n'.join(lines)
 
 sources, refs = [], []
 for file in sorted((root/'App').rglob('*.swift')):
@@ -75,7 +130,7 @@ dependency=add('testDependency','PBXTargetDependency',target=target,targetProxy=
 testTarget=add('testTarget','PBXNativeTarget',buildConfigurationList=configs('tests',{'PRODUCT_BUNDLE_IDENTIFIER':'is.vivatok.mural.uitests','PRODUCT_NAME':'$(TARGET_NAME)','GENERATE_INFOPLIST_FILE':'YES','TEST_TARGET_NAME':'Mural','TARGETED_DEVICE_FAMILY':'1','CODE_SIGN_STYLE':'Automatic'}),buildPhases=[testSources],buildRules=[],dependencies=[dependency],name='MuralUITests',productName='MuralUITests',productReference=testProduct,productType='com.apple.product-type.bundle.ui-testing')
 project=add('project','PBXProject',attributes={'BuildIndependentTargetsInParallel':'YES','LastUpgradeCheck':'2640','TargetAttributes':{target:{'CreatedOnToolsVersion':'26.4'},testTarget:{'CreatedOnToolsVersion':'26.4','TestTargetID':target}}},buildConfigurationList=configs('project',common),compatibilityVersion='Xcode 14.0',developmentRegion='en',hasScannedForEncodings=0,knownRegions=['en','nb','Base'],mainGroup=group,packageReferences=[corePackage,rtcPackage],productRefGroup=products,projectDirPath='',projectRoot='',targets=[target,testTarget])
 folder=root/'Mural.xcodeproj';folder.mkdir(exist_ok=True)
-folder.joinpath('project.pbxproj').write_text('// !$*UTF8*$!\n'+encode({'archiveVersion':1,'classes':{},'objectVersion':60,'objects':objects,'rootObject':project})+'\n')
+folder.joinpath('project.pbxproj').write_text(encode_project(project))
 scheme=folder/'xcshareddata'/'xcschemes';scheme.mkdir(parents=True,exist_ok=True)
 scheme.joinpath('Mural.xcscheme').write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2640" version="1.3">
