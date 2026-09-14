@@ -24,15 +24,15 @@ build:
         working_directory: ./ios
         command: xcodebuild -resolvePackageDependencies -project Mural.xcodeproj -scheme Mural
 
-    - eas/resolve_apple_team_id_from_credentials:
-        id: resolve_apple_team_id_from_credentials
-
     - eas/configure_ios_credentials:
         inputs:
           build_configuration: Release
 
+    # Without the credentials input this step falls back to its simulator
+    # template (no archive, no IPA), so the artifact upload finds nothing.
     - eas/generate_gymfile_from_template:
         inputs:
+          credentials: ${ eas.job.secrets.buildCredentials }
           scheme: Mural
           build_configuration: Release
 
